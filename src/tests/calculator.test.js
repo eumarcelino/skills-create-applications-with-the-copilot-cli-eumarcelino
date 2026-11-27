@@ -9,6 +9,9 @@ const {
   subtraction,
   multiplication,
   division,
+  modulo,
+  power,
+  squareRoot,
   calculate,
 } = require('../calculator');
 
@@ -45,15 +48,42 @@ test('division rejects a zero divisor', () => {
   });
 });
 
+test('modulo returns the remainder and rejects a zero divisor', () => {
+  assert.equal(modulo(10, 3), 1);
+  assert.equal(modulo(-10, 3), -1);
+  assert.throws(() => modulo(10, 0), /Cannot modulo by zero/);
+});
+
+test('power supports positive, zero, and negative exponents', () => {
+  assert.equal(power(2, 3), 8);
+  assert.equal(power(5, 0), 1);
+  assert.equal(power(2, -2), 0.25);
+  assert.equal(power(-2, 3), -8);
+});
+
+test('power rejects results that are not finite numbers', () => {
+  assert.throws(() => power(-2, 0.5), /Power result must be a finite number/);
+  assert.throws(() => power(10, 1000), /Power result must be a finite number/);
+});
+
+test('square root returns non-negative roots and rejects negative numbers', () => {
+  assert.equal(squareRoot(81), 9);
+  assert.equal(squareRoot(0), 0);
+  assert.throws(() => squareRoot(-1), /square root of a negative number/);
+});
+
 test('calculate accepts operation names and symbols', () => {
   assert.equal(calculate(2, 'addition', 3), 5);
   assert.equal(calculate(8, '-', 3), 5);
   assert.equal(calculate(4, '*', 3), 12);
   assert.equal(calculate(12, 'division', 3), 4);
+  assert.equal(calculate(10, 'modulo', 3), 1);
+  assert.equal(calculate(2, 'power', 3), 8);
+  assert.equal(calculate(81, 'sqrt'), 9);
 });
 
 test('calculate rejects unsupported operations', () => {
-  assert.throws(() => calculate(2, '%', 3), /Unsupported operation: %/);
+  assert.throws(() => calculate(2, '?', 3), /Unsupported operation: \?/);
 });
 
 test('CLI prints results for each arithmetic operator', () => {
@@ -62,6 +92,8 @@ test('CLI prints results for each arithmetic operator', () => {
     ['8', '-', '3', '5'],
     ['4', '*', '3', '12'],
     ['12', '/', '3', '4'],
+    ['10', '%', '3', '1'],
+    ['2', '^', '3', '8'],
   ];
 
   for (const [left, operator, right, expected] of examples) {
@@ -74,6 +106,15 @@ test('CLI prints results for each arithmetic operator', () => {
     assert.equal(result.stdout.trim(), expected);
     assert.equal(result.stderr, '');
   }
+
+  const squareRootResult = spawnSync(process.execPath, [calculatorPath, 'sqrt', '81'], {
+    encoding: 'utf8',
+    env: childEnvironment,
+  });
+
+  assert.equal(squareRootResult.status, 0);
+  assert.equal(squareRootResult.stdout.trim(), '9');
+  assert.equal(squareRootResult.stderr, '');
 });
 
 test('CLI reports invalid input and division by zero', () => {
@@ -90,4 +131,12 @@ test('CLI reports invalid input and division by zero', () => {
   assert.match(invalidNumber.stderr, /Invalid number: x/);
   assert.equal(divisionByZero.status, 1);
   assert.match(divisionByZero.stderr, /Cannot divide by zero/);
+
+  const negativeSquareRoot = spawnSync(process.execPath, [calculatorPath, 'sqrt', '-1'], {
+    encoding: 'utf8',
+    env: childEnvironment,
+  });
+
+  assert.equal(negativeSquareRoot.status, 1);
+  assert.match(negativeSquareRoot.stderr, /square root of a negative number/);
 });
